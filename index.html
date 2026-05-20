@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Combine PDF – by Jasir Sayed</title>
+  <!-- jsPDF loaded dynamically to ensure it's ready before use -->
+  <script>
+    function loadJsPDF() {
+      return new Promise((resolve, reject) => {
+        if (window.jspdf && window.jspdf.jsPDF) return resolve();
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('Failed to load jsPDF. Check your internet connection.'));
+        document.head.appendChild(s);
+      });
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0e0e11;
+      --surface: #17171c;
+      --surface2: #1f1f27;
+      --border: #2a2a36;
+      --accent: #c8f04e;
+      --accent2: #7c6af7;
+      --text: #f0f0f4;
+      --muted: #7a7a8c;
+      --a4-w: 210mm;
+      --a4-h: 297mm;
+      --scale: 0.38;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 22px 40px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.35rem;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+    }
+
+    .logo-icon svg { width: 18px; height: 18px; }
+
+    .logo span { color: var(--accent); }
+
+    .header-badge {
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 4px 12px;
+      border-radius: 20px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      text-align: center;
+      padding: 56px 20px 40px;
+    }
+
+    .hero h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2rem, 5vw, 3.4rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+    }
+
+    .hero h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .hero p {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 1rem;
+      font-weight: 300;
+      max-width: 480px;
+      margin-inline: auto;
+      line-height: 1.65;
+    }
+
+    /* ── TOOLBAR ── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding: 0 24px 36px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 22px;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.18s ease;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #0e0e11;
+    }
+    .btn-primary:hover { background: #d8ff5a; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(200,240,78,0.3); }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--border); }
+
+    .btn-danger {
+      background: transparent;
+      color: #ff6b6b;
+      border: 1px solid #ff6b6b44;
+    }
+    .btn-danger:hover { background: #ff6b6b18; }
+
+    .btn-download {
+      background: var(--accent2);
+      color: #fff;
+    }
+    .btn-download:hover { background: #9183ff; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(124,106,247,0.4); }
+
+    .btn svg { flex-shrink: 0; }
+
+    /* Orientation toggle */
+    .orient-group {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .orient-btn {
+      padding: 10px 18px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.86rem;
+      font-weight: 500;
+      cursor: pointer;
+      background: var(--surface2);
+      color: var(--muted);
+      border: none;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: all 0.15s;
+    }
+
+    .orient-btn.active {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .orient-btn:hover:not(.active) { color: var(--text); }
+
+    /* Drop zone */
+    #dropzone {
+      margin: 0 auto 40px;
+      max-width: 760px;
+      width: calc(100% - 48px);
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      padding: 52px 24px;
+      text-align: center;
+      transition: all 0.2s;
+      cursor: pointer;
+      background: var(--surface);
+    }
+
+    #dropzone.drag-over {
+      border-color: var(--accent);
+      background: rgba(200,240,78,0.05);
+    }
+
+    #dropzone svg { color: var(--muted); margin-bottom: 16px; }
+
+    #dropzone h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    #dropzone p {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    #dropzone p span { color: var(--accent); font-weight: 500; }
+
+    #fileInput { display: none; }
+
+    /* ── PAGES GRID ── */
+    #pagesSection { display: none; padding: 0 24px 60px; }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 1100px;
+      margin: 0 auto 24px;
+    }
+
+    .section-header h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .page-count {
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    #pagesGrid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* Individual page card */
+    .page-card {
+      position: relative;
+      flex-shrink: 0;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      transition: border-color 0.2s;
+    }
+
+    .page-card:hover { border-color: var(--accent2); }
+
+    /* A4 canvas container – portrait */
+    .a4-canvas {
+      position: relative;
+      background: #ffffff;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .a4-canvas img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* card controls overlay */
+    .card-controls {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      display: flex;
+      gap: 5px;
+      opacity: 0;
+      transition: opacity 0.18s;
+    }
+
+    .page-card:hover .card-controls { opacity: 1; }
+
+    .card-btn {
+      width: 28px; height: 28px;
+      border-radius: 7px;
+      border: none;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      font-size: 0; /* icon only */
+      transition: all 0.15s;
+    }
+
+    .card-btn svg { pointer-events: none; }
+
+    .card-btn-del { background: #ff6b6b; }
+    .card-btn-del:hover { background: #ff4444; }
+    .card-btn-up  { background: var(--surface2); border: 1px solid var(--border); }
+    .card-btn-up:hover  { background: var(--border); }
+    .card-btn-dn  { background: var(--surface2); border: 1px solid var(--border); }
+    .card-btn-dn:hover  { background: var(--border); }
+    .card-btn-rot { background: var(--accent2); }
+    .card-btn-rot:hover { background: #9183ff; }
+    .card-btn-crop { background: #f4a62a; }
+    .card-btn-crop:hover { background: #ffb93a; }
+
+    /* crop badge on card when crop is applied */
+    .crop-badge {
+      position: absolute;
+      bottom: 6px;
+      right: 8px;
+      font-size: 0.62rem;
+      font-weight: 600;
+      color: #0e0e11;
+      background: #f4a62a;
+      padding: 2px 7px;
+      border-radius: 5px;
+    }
+
+    /* ── CROP MODAL ── */
+    #cropModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10,10,13,0.94);
+      backdrop-filter: blur(6px);
+      z-index: 500;
+      flex-direction: column;
+    }
+    #cropModal.open { display: flex; }
+
+    .crop-topbar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      background: rgba(23,23,28,0.95);
+      border-bottom: 1px solid var(--border);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .crop-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .crop-topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .crop-ctrl-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+    .crop-ctrl-btn.apply {
+      background: var(--accent);
+      color: #0e0e11;
+    }
+    .crop-ctrl-btn.apply:hover { background: #d8ff5a; }
+    .crop-ctrl-btn.apply:disabled { opacity: 0.35; cursor: not-allowed; }
+    .crop-ctrl-btn.reset {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .crop-ctrl-btn.reset:hover { background: var(--border); }
+    .crop-ctrl-btn.cancel {
+      background: transparent;
+      color: #ff6b6b;
+      border: 1px solid #ff6b6b44;
+    }
+    .crop-ctrl-btn.cancel:hover { background: #ff6b6b18; }
+
+    /* zoom controls */
+    .crop-zoom-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px 6px;
+    }
+    .zoom-btn {
+      width: 30px; height: 30px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      background: transparent;
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      transition: background 0.15s;
+    }
+    .zoom-btn:hover { background: var(--border); }
+    .zoom-btn:active { background: var(--accent); color: #0e0e11; }
+    .zoom-level {
+      min-width: 52px;
+      text-align: center;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      cursor: pointer;
+      user-select: none;
+    }
+    .zoom-level:hover { color: var(--accent); }
+
+    .crop-workspace {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      position: relative;
+      min-height: 0;
+    }
+
+    /* Canvas stage — fills the workspace, image drawn with zoom + pan */
+    #cropCanvas {
+      display: block;
+      touch-action: none;
+      cursor: crosshair;
+    }
+    #cropCanvas.panning { cursor: grabbing; }
+    #cropCanvas.pan-ready { cursor: grab; }
+
+    .crop-hint-bar {
+      flex-shrink: 0;
+      text-align: center;
+      padding: 10px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      background: rgba(23,23,28,0.8);
+    }
+    .crop-hint-bar span { color: var(--text); font-weight: 500; }
+
+    .card-num {
+      position: absolute;
+      bottom: 6px;
+      left: 8px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #fff;
+      background: rgba(0,0,0,0.55);
+      padding: 2px 7px;
+      border-radius: 5px;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      text-align: center;
+      padding: 28px 20px 32px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    footer .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    footer a.insta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      text-decoration: none;
+      color: var(--text);
+      background: linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+      padding: 7px 16px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      transition: opacity 0.18s, transform 0.18s;
+    }
+
+    footer a.insta-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+
+    /* ── LOADING overlay ── */
+    #loadingOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(14,14,17,0.82);
+      backdrop-filter: blur(4px);
+      z-index: 999;
+      place-items: center;
+    }
+
+    #loadingOverlay.show { display: grid; }
+
+    .loader-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 36px 48px;
+      text-align: center;
+    }
+
+    .spinner {
+      width: 44px; height: 44px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loader-box p {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    /* Responsive */
+    @media (max-width: 560px) {
+      header { padding: 16px 18px; }
+      .hero { padding: 36px 16px 28px; }
+      .toolbar { gap: 8px; }
+      #dropzone { width: calc(100% - 32px); padding: 40px 16px; }
+      .crop-topbar { padding: 10px 12px; }
+      .crop-ctrl-btn { padding: 7px 12px; font-size: 0.78rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loadingOverlay">
+  <div class="loader-box">
+    <div class="spinner"></div>
+    <p>Generating your PDF…</p>
+  </div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0e0e11" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+      </svg>
+    </div>
+    Combine<span>PDF</span>
+  </div>
+  <div class="header-badge">Free · No upload · 100% Local</div>
+</header>
+
+<!-- Hero -->
+<div class="hero">
+  <h1>Screenshots to <em>A4 PDF</em><br/>in seconds</h1>
+  <p>Upload any-size snips, arrange pages, choose orientation — download a clean A4 PDF instantly.</p>
+</div>
+
+<!-- Toolbar -->
+<div class="toolbar">
+  <!-- Upload button -->
+  <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Add Images
+  </button>
+  <input type="file" id="fileInput" accept="image/*" multiple />
+
+  <!-- Orientation toggle -->
+  <div class="orient-group">
+    <button class="orient-btn active" id="btnPortrait" onclick="setOrientation('portrait')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="2" width="14" height="20" rx="2"/></svg>
+      Portrait
+    </button>
+    <button class="orient-btn" id="btnLandscape" onclick="setOrientation('landscape')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="5" width="20" height="14" rx="2"/></svg>
+      Landscape
+    </button>
+  </div>
+
+  <!-- Clear all -->
+  <button class="btn btn-danger" id="clearBtn" onclick="clearAll()" style="display:none;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+    Clear All
+  </button>
+
+  <!-- Download PDF -->
+  <button class="btn btn-download" id="downloadBtn" onclick="generatePDF()" style="display:none;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Download PDF
+  </button>
+</div>
+
+<!-- Drop zone -->
+<div id="dropzone"
+  ondragover="handleDragOver(event)"
+  ondragleave="handleDragLeave(event)"
+  ondrop="handleDrop(event)"
+  onclick="document.getElementById('fileInput').click()">
+  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+  <h3>Drop images here</h3>
+  <p>or <span>click to browse</span> — PNG, JPG, WEBP supported</p>
+</div>
+
+<!-- Pages section -->
+<div id="pagesSection">
+  <div class="section-header">
+    <h2>Pages</h2>
+    <span class="page-count" id="pageCountLabel">0 pages</span>
+  </div>
+  <div id="pagesGrid"></div>
+</div>
+
+<!-- Crop Modal -->
+<div id="cropModal">
+  <div class="crop-topbar">
+    <span class="crop-title" id="cropTitle">Crop — Page 1</span>
+    <div class="crop-topbar-right">
+      <div class="crop-zoom-group">
+        <button class="zoom-btn" id="zoomOutBtn" title="Zoom out" onclick="zoomBy(1/1.25)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <span class="zoom-level" id="zoomLevel" title="Click to fit" onclick="zoomFit()">100%</span>
+        <button class="zoom-btn" id="zoomInBtn" title="Zoom in" onclick="zoomBy(1.25)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <button class="crop-ctrl-btn reset" id="cropResetBtn" onclick="resetCrop()" title="Remove crop and restore original">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Reset
+      </button>
+      <button class="crop-ctrl-btn apply" id="cropApplyBtn" onclick="applyCrop()" disabled>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Apply Crop
+      </button>
+      <button class="crop-ctrl-btn cancel" onclick="closeCrop()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Close
+      </button>
+    </div>
+  </div>
+  <div class="crop-workspace" id="cropWorkspace">
+    <canvas id="cropCanvas"></canvas>
+  </div>
+  <div class="crop-hint-bar">Drag to select · drag inside box to move · drag corners to resize · <span>scroll / pinch</span> to zoom · <span>Space-drag</span> or middle-drag to pan</div>
+</div>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-inner">
+    <span>Created by <strong>Jasir Sayed</strong></span>
+    <a class="insta-btn" href="https://instagram.com/jasir_sayed" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+      @jasir_sayed
+    </a>
+    <span>· All processing happens in your browser</span>
+  </div>
+</footer>
+
+<script>
+  // ── State ──
+  let pages = [];          // [{img, dataUrl, naturalW, naturalH, rotation}]
+  let orientation = 'portrait';
+
+  // A4 dimensions in mm
+  const A4_P = { w: 210, h: 297 };   // portrait
+  const A4_L = { w: 297, h: 210 };   // landscape
+
+  // Preview scale (px per mm) – keep cards small on screen
+  const PX_PER_MM = 1.6;
+
+  // ── File input ──
+  document.getElementById('fileInput').addEventListener('change', e => {
+    handleFiles(Array.from(e.target.files));
+    e.target.value = '';
+  });
+
+  function handleFiles(files) {
+    const imgs = files.filter(f => f.type.startsWith('image/'));
+    imgs.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          pages.push({ img, dataUrl: ev.target.result, naturalW: img.naturalWidth, naturalH: img.naturalHeight, rotation: 0 });
+          render();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ── Drag & drop ──
+  function handleDragOver(e) {
+    e.preventDefault();
+    document.getElementById('dropzone').classList.add('drag-over');
+  }
+  function handleDragLeave() {
+    document.getElementById('dropzone').classList.remove('drag-over');
+  }
+  function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropzone').classList.remove('drag-over');
+    handleFiles(Array.from(e.dataTransfer.files));
+  }
+
+  // ── Orientation ──
+  function setOrientation(mode) {
+    orientation = mode;
+    document.getElementById('btnPortrait').classList.toggle('active', mode === 'portrait');
+    document.getElementById('btnLandscape').classList.toggle('active', mode === 'landscape');
+    render();
+  }
+
+  // ── Render pages ──
+  function render() {
+    const grid = document.getElementById('pagesGrid');
+    const section = document.getElementById('pagesSection');
+    const dropzone = document.getElementById('dropzone');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const countLabel = document.getElementById('pageCountLabel');
+
+    grid.innerHTML = '';
+
+    if (pages.length === 0) {
+      section.style.display = 'none';
+      dropzone.style.display = 'block';
+      downloadBtn.style.display = 'none';
+      clearBtn.style.display = 'none';
+      return;
+    }
+
+    dropzone.style.display = 'none';
+    section.style.display = 'block';
+    downloadBtn.style.display = 'inline-flex';
+    clearBtn.style.display = 'inline-flex';
+    countLabel.textContent = pages.length + (pages.length === 1 ? ' page' : ' pages');
+
+    const a4 = orientation === 'portrait' ? A4_P : A4_L;
+    const cardW = Math.round(a4.w * PX_PER_MM);
+    const cardH = Math.round(a4.h * PX_PER_MM);
+
+    pages.forEach((page, i) => {
+      const card = document.createElement('div');
+      card.className = 'page-card';
+      card.style.width = cardW + 'px';
+
+      // A4 white canvas
+      const canvas = document.createElement('div');
+      canvas.className = 'a4-canvas';
+      canvas.style.width = cardW + 'px';
+      canvas.style.height = cardH + 'px';
+
+      // Fit image inside A4 preserving aspect ratio
+      const img = document.createElement('img');
+      img.src = page.dataUrl;
+      img.style.maxWidth = '100%';
+      img.style.maxHeight = '100%';
+      img.style.objectFit = 'contain';
+      img.style.transform = `rotate(${page.rotation}deg)`;
+      img.style.transition = 'transform 0.25s ease';
+      canvas.appendChild(img);
+
+      // Controls
+      const controls = document.createElement('div');
+      controls.className = 'card-controls';
+
+      if (i > 0) {
+        const upBtn = document.createElement('button');
+        upBtn.className = 'card-btn card-btn-up';
+        upBtn.title = 'Move left';
+        upBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`;
+        upBtn.onclick = (e) => { e.stopPropagation(); movePage(i, -1); };
+        controls.appendChild(upBtn);
+      }
+
+      if (i < pages.length - 1) {
+        const dnBtn = document.createElement('button');
+        dnBtn.className = 'card-btn card-btn-dn';
+        dnBtn.title = 'Move right';
+        dnBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+        dnBtn.onclick = (e) => { e.stopPropagation(); movePage(i, 1); };
+        controls.appendChild(dnBtn);
+      }
+
+      // Rotate button
+      const rotBtn = document.createElement('button');
+      rotBtn.className = 'card-btn card-btn-rot';
+      rotBtn.title = 'Rotate 90° clockwise';
+      rotBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`;
+      rotBtn.onclick = (e) => { e.stopPropagation(); rotatePage(i); };
+      controls.appendChild(rotBtn);
+
+      // Crop button
+      const cropBtn = document.createElement('button');
+      cropBtn.className = 'card-btn card-btn-crop';
+      cropBtn.title = 'Crop image';
+      cropBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 2 6 18 22 18"/><polyline points="2 6 18 6 18 22"/></svg>`;
+      cropBtn.onclick = (e) => { e.stopPropagation(); openCrop(i); };
+      controls.appendChild(cropBtn);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'card-btn card-btn-del';
+      delBtn.title = 'Remove page';
+      delBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+      delBtn.onclick = (e) => { e.stopPropagation(); removePage(i); };
+      controls.appendChild(delBtn);
+
+      // Page number badge
+      const num = document.createElement('div');
+      num.className = 'card-num';
+      num.textContent = `Page ${i + 1}`;
+
+      card.appendChild(canvas);
+      card.appendChild(controls);
+      card.appendChild(num);
+
+      // Show "cropped" badge if crop was applied
+      if (page.originalDataUrl) {
+        const badge = document.createElement('div');
+        badge.className = 'crop-badge';
+        badge.textContent = 'cropped';
+        card.appendChild(badge);
+      }
+
+      grid.appendChild(card);
+    });
+  }
+
+  function rotatePage(i) {
+    pages[i].rotation = ((pages[i].rotation || 0) + 90) % 360;
+    render();
+  }
+
+  function movePage(i, dir) {
+    const j = i + dir;
+    if (j < 0 || j >= pages.length) return;
+    [pages[i], pages[j]] = [pages[j], pages[i]];
+    render();
+  }
+
+  function removePage(i) {
+    pages.splice(i, 1);
+    render();
+  }
+
+  function clearAll() {
+    if (pages.length === 0) return;
+    if (confirm('Remove all pages?')) { pages = []; render(); }
+  }
+
+  /* ============================================================
+     CROP MODAL — canvas-based, zoom + pan, rotation-correct
+     ------------------------------------------------------------
+     Coordinate model:
+       • "image space"  = pixels of the (rotation-applied) source.
+                          The selection rectangle is stored here, so
+                          it stays correct regardless of zoom/rotation.
+       • "view space"   = canvas pixels = image-space * zoom + pan.
+     ============================================================ */
+  const cropState = {
+    pageIndex: 0,
+    srcCanvas: null,   // rotation-applied source as an offscreen canvas
+    imgW: 0, imgH: 0,  // dimensions of srcCanvas (image space)
+    zoom: 1, minZoom: 0.05, maxZoom: 8,
+    panX: 0, panY: 0,  // top-left of image in view space
+    sel: null,         // {x,y,w,h} in image space, or null
+    // interaction
+    mode: null,        // 'new' | 'move' | 'resize' | 'pan' | null
+    handle: null,      // which resize handle
+    dragStart: null,   // {mx,my, sel:{...}} snapshot at gesture start
+    spaceDown: false,
+    pointers: new Map(),
+    pinchStart: null,
+  };
+
+  const HANDLE = 12; // px hit-radius for corner/edge handles (view space)
+
+  function openCrop(i) {
+    const page = pages[i];
+    cropState.pageIndex = i;
+
+    // Build rotation-applied source canvas ONCE — all crop math is done
+    // against this, so a rotated image crops correctly.
+    const rot = ((page.rotation || 0) % 360 + 360) % 360;
+    const swapped = rot === 90 || rot === 270;
+    const sc = document.createElement('canvas');
+    sc.width  = swapped ? page.naturalH : page.naturalW;
+    sc.height = swapped ? page.naturalW : page.naturalH;
+    const sctx = sc.getContext('2d');
+    sctx.save();
+    sctx.translate(sc.width / 2, sc.height / 2);
+    sctx.rotate(rot * Math.PI / 180);
+    sctx.drawImage(page.img, -page.naturalW / 2, -page.naturalH / 2, page.naturalW, page.naturalH);
+    sctx.restore();
+
+    cropState.srcCanvas = sc;
+    cropState.imgW = sc.width;
+    cropState.imgH = sc.height;
+    cropState.sel = null;
+    cropState.mode = null;
+    cropState.pointers.clear();
+    cropState.pinchStart = null;
+
+    document.getElementById('cropTitle').textContent = `Crop — Page ${i + 1}`;
+    document.getElementById('cropApplyBtn').disabled = true;
+    document.getElementById('cropResetBtn').style.display = page.originalDataUrl ? 'inline-flex' : 'none';
+
+    document.getElementById('cropModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+
+    // Size the canvas to the workspace, then fit the image.
+    requestAnimationFrame(() => {
+      resizeCropCanvas();
+      zoomFit();
+    });
+  }
+
+  function closeCrop() {
+    document.getElementById('cropModal').classList.remove('open');
+    document.body.style.overflow = '';
+    cropState.srcCanvas = null;
+    cropState.pointers.clear();
+  }
+
+  function resizeCropCanvas() {
+    const ws = document.getElementById('cropWorkspace');
+    const cv = document.getElementById('cropCanvas');
+    const dpr = window.devicePixelRatio || 1;
+    const w = ws.clientWidth;
+    const h = ws.clientHeight;
+    cv.style.width = w + 'px';
+    cv.style.height = h + 'px';
+    cv.width = Math.max(1, Math.round(w * dpr));
+    cv.height = Math.max(1, Math.round(h * dpr));
+    cropState.viewW = w;
+    cropState.viewH = h;
+    cropState.dpr = dpr;
+    drawCrop();
+  }
+
+  function clampPan() {
+    // Keep at least part of the image visible; center if smaller than view.
+    const { imgW, imgH, zoom, viewW, viewH } = cropState;
+    const dispW = imgW * zoom;
+    const dispH = imgH * zoom;
+    if (dispW <= viewW) cropState.panX = (viewW - dispW) / 2;
+    else cropState.panX = Math.min(0, Math.max(viewW - dispW, cropState.panX));
+    if (dispH <= viewH) cropState.panY = (viewH - dispH) / 2;
+    else cropState.panY = Math.min(0, Math.max(viewH - dispH, cropState.panY));
+  }
+
+  function zoomFit() {
+    const { imgW, imgH, viewW, viewH } = cropState;
+    if (!imgW || !viewW) return;
+    const z = Math.min(viewW / imgW, viewH / imgH);
+    cropState.zoom = Math.max(cropState.minZoom, Math.min(cropState.maxZoom, z));
+    clampPan();
+    drawCrop();
+    updateZoomLabel();
+  }
+
+  function zoomBy(factor, centerView) {
+    const { viewW, viewH } = cropState;
+    const cx = centerView ? centerView.x : viewW / 2;
+    const cy = centerView ? centerView.y : viewH / 2;
+    // image-space point under the zoom center
+    const ix = (cx - cropState.panX) / cropState.zoom;
+    const iy = (cy - cropState.panY) / cropState.zoom;
+    const newZoom = Math.max(cropState.minZoom, Math.min(cropState.maxZoom, cropState.zoom * factor));
+    cropState.zoom = newZoom;
+    // keep the same image point under the cursor
+    cropState.panX = cx - ix * newZoom;
+    cropState.panY = cy - iy * newZoom;
+    clampPan();
+    drawCrop();
+    updateZoomLabel();
+  }
+
+  function updateZoomLabel() {
+    document.getElementById('zoomLevel').textContent = Math.round(cropState.zoom * 100) + '%';
+  }
+
+  // coordinate transforms
+  function viewToImage(vx, vy) {
+    return {
+      x: (vx - cropState.panX) / cropState.zoom,
+      y: (vy - cropState.panY) / cropState.zoom,
+    };
+  }
+  function imageToView(ix, iy) {
+    return {
+      x: ix * cropState.zoom + cropState.panX,
+      y: iy * cropState.zoom + cropState.panY,
+    };
+  }
+
+  function drawCrop() {
+    const cv = document.getElementById('cropCanvas');
+    if (!cv || !cropState.srcCanvas) return;
+    const ctx = cv.getContext('2d');
+    const { dpr = 1, viewW, viewH, zoom, panX, panY, imgW, imgH } = cropState;
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, viewW, viewH);
+
+    // checkerboard backdrop so transparent PNGs are visible
+    drawChecker(ctx, viewW, viewH);
+
+    // image
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(cropState.srcCanvas, panX, panY, imgW * zoom, imgH * zoom);
+
+    // selection
+    const sel = cropState.sel;
+    if (sel && sel.w > 0 && sel.h > 0) {
+      const tl = imageToView(sel.x, sel.y);
+      const sw = sel.w * zoom;
+      const sh = sel.h * zoom;
+
+      // dim everything outside the selection
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.beginPath();
+      ctx.rect(0, 0, viewW, viewH);
+      ctx.rect(tl.x, tl.y, sw, sh);
+      ctx.fill('evenodd');
+      ctx.restore();
+
+      // border
+      ctx.strokeStyle = getCSS('--accent') || '#c8f04e';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(tl.x + 0.5, tl.y + 0.5, sw, sh);
+
+      // rule-of-thirds guides
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let k = 1; k <= 2; k++) {
+        ctx.moveTo(tl.x + (sw * k) / 3, tl.y);
+        ctx.lineTo(tl.x + (sw * k) / 3, tl.y + sh);
+        ctx.moveTo(tl.x, tl.y + (sh * k) / 3);
+        ctx.lineTo(tl.x + sw, tl.y + (sh * k) / 3);
+      }
+      ctx.stroke();
+
+      // corner handles
+      ctx.fillStyle = getCSS('--accent') || '#c8f04e';
+      const corners = [
+        [tl.x, tl.y], [tl.x + sw, tl.y],
+        [tl.x, tl.y + sh], [tl.x + sw, tl.y + sh],
+      ];
+      corners.forEach(([hx, hy]) => {
+        ctx.fillRect(hx - 5, hy - 5, 10, 10);
+      });
+    }
+  }
+
+  let _checkerPattern = null;
+  function drawChecker(ctx, w, h) {
+    if (!_checkerPattern) {
+      const p = document.createElement('canvas');
+      p.width = p.height = 20;
+      const pc = p.getContext('2d');
+      pc.fillStyle = '#15151a'; pc.fillRect(0, 0, 20, 20);
+      pc.fillStyle = '#1d1d24'; pc.fillRect(0, 0, 10, 10); pc.fillRect(10, 10, 10, 10);
+      _checkerPattern = ctx.createPattern(p, 'repeat');
+    }
+    ctx.save();
+    ctx.fillStyle = _checkerPattern;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
+  }
+
+  function getCSS(varName) {
+    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  }
+
+  // ── Hit testing (returns handle name or 'inside' or null) in view space ──
+  function hitTest(vx, vy) {
+    const sel = cropState.sel;
+    if (!sel) return null;
+    const tl = imageToView(sel.x, sel.y);
+    const sw = sel.w * cropState.zoom;
+    const sh = sel.h * cropState.zoom;
+    const corners = {
+      tl: [tl.x, tl.y], tr: [tl.x + sw, tl.y],
+      bl: [tl.x, tl.y + sh], br: [tl.x + sw, tl.y + sh],
+    };
+    for (const name in corners) {
+      const [hx, hy] = corners[name];
+      if (Math.abs(vx - hx) <= HANDLE && Math.abs(vy - hy) <= HANDLE) return name;
+    }
+    if (vx >= tl.x && vx <= tl.x + sw && vy >= tl.y && vy <= tl.y + sh) return 'inside';
+    return null;
+  }
+
+  function cursorForHandle(h) {
+    switch (h) {
+      case 'tl': case 'br': return 'nwse-resize';
+      case 'tr': case 'bl': return 'nesw-resize';
+      case 'inside': return 'move';
+      default: return 'crosshair';
+    }
+  }
+
+  function clampSelToImage(sel) {
+    sel.x = Math.max(0, Math.min(cropState.imgW, sel.x));
+    sel.y = Math.max(0, Math.min(cropState.imgH, sel.y));
+    sel.w = Math.max(1, Math.min(cropState.imgW - sel.x, sel.w));
+    sel.h = Math.max(1, Math.min(cropState.imgH - sel.y, sel.h));
+    return sel;
+  }
+
+  function getCanvasPos(clientX, clientY) {
+    const cv = document.getElementById('cropCanvas');
+    const r = cv.getBoundingClientRect();
+    return { x: clientX - r.left, y: clientY - r.top };
+  }
+
+  // ── Pointer interaction ──
+  function initCropEvents() {
+    const cv = document.getElementById('cropCanvas');
+    if (!cv) return;
+
+    cv.addEventListener('pointerdown', onPointerDown);
+    cv.addEventListener('pointermove', onPointerMove);
+    cv.addEventListener('pointerup', onPointerUp);
+    cv.addEventListener('pointercancel', onPointerUp);
+    cv.addEventListener('pointerleave', onPointerHoverLeave);
+
+    // wheel zoom
+    cv.addEventListener('wheel', e => {
+      e.preventDefault();
+      const pos = getCanvasPos(e.clientX, e.clientY);
+      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      zoomBy(factor, pos);
+    }, { passive: false });
+
+    window.addEventListener('resize', () => {
+      if (document.getElementById('cropModal').classList.contains('open')) {
+        resizeCropCanvas();
+        clampPan();
+        drawCrop();
+      }
+    });
+  }
+
+  function onPointerDown(e) {
+    const cv = document.getElementById('cropCanvas');
+    cv.setPointerCapture(e.pointerId);
+    cropState.pointers.set(e.pointerId, getCanvasPos(e.clientX, e.clientY));
+
+    // Two-finger pinch start
+    if (cropState.pointers.size === 2) {
+      const pts = [...cropState.pointers.values()];
+      cropState.pinchStart = {
+        dist: dist(pts[0], pts[1]),
+        zoom: cropState.zoom,
+        center: midpoint(pts[0], pts[1]),
+      };
+      cropState.mode = 'pinch';
+      return;
+    }
+
+    const pos = getCanvasPos(e.clientX, e.clientY);
+
+    // Pan with space, middle button, or pan-ready (space) state
+    if (cropState.spaceDown || e.button === 1) {
+      cropState.mode = 'pan';
+      cropState.dragStart = { mx: pos.x, my: pos.y, panX: cropState.panX, panY: cropState.panY };
+      cv.classList.add('panning');
+      return;
+    }
+
+    const hit = hitTest(pos.x, pos.y);
+    const ip = viewToImage(pos.x, pos.y);
+
+    if (hit && hit !== 'inside') {
+      cropState.mode = 'resize';
+      cropState.handle = hit;
+      cropState.dragStart = { sel: { ...cropState.sel } };
+    } else if (hit === 'inside') {
+      cropState.mode = 'move';
+      cropState.dragStart = { ix: ip.x, iy: ip.y, sel: { ...cropState.sel } };
+    } else {
+      // start a brand-new selection
+      cropState.mode = 'new';
+      cropState.sel = { x: ip.x, y: ip.y, w: 0, h: 0 };
+      cropState.dragStart = { ix: ip.x, iy: ip.y };
+    }
+    drawCrop();
+  }
+
+  function onPointerMove(e) {
+    if (cropState.pointers.has(e.pointerId)) {
+      cropState.pointers.set(e.pointerId, getCanvasPos(e.clientX, e.clientY));
+    }
+    const pos = getCanvasPos(e.clientX, e.clientY);
+
+    // Pinch zoom
+    if (cropState.mode === 'pinch' && cropState.pointers.size >= 2) {
+      const pts = [...cropState.pointers.values()];
+      const d = dist(pts[0], pts[1]);
+      const factor = d / cropState.pinchStart.dist;
+      const center = cropState.pinchStart.center;
+      const targetZoom = Math.max(cropState.minZoom, Math.min(cropState.maxZoom, cropState.pinchStart.zoom * factor));
+      // zoom around the original pinch center
+      const ix = (center.x - cropState.panX) / cropState.zoom;
+      const iy = (center.y - cropState.panY) / cropState.zoom;
+      cropState.zoom = targetZoom;
+      cropState.panX = center.x - ix * targetZoom;
+      cropState.panY = center.y - iy * targetZoom;
+      clampPan();
+      drawCrop();
+      updateZoomLabel();
+      return;
+    }
+
+    const cv = document.getElementById('cropCanvas');
+
+    if (!cropState.mode) {
+      // hover cursor feedback
+      if (cropState.spaceDown) { cv.style.cursor = 'grab'; return; }
+      const hit = hitTest(pos.x, pos.y);
+      cv.style.cursor = cursorForHandle(hit);
+      return;
+    }
+
+    if (cropState.mode === 'pan') {
+      cropState.panX = cropState.dragStart.panX + (pos.x - cropState.dragStart.mx);
+      cropState.panY = cropState.dragStart.panY + (pos.y - cropState.dragStart.my);
+      clampPan();
+      drawCrop();
+      return;
+    }
+
+    const ip = viewToImage(pos.x, pos.y);
+
+    if (cropState.mode === 'new') {
+      const x0 = cropState.dragStart.ix, y0 = cropState.dragStart.iy;
+      cropState.sel = clampSelToImage({
+        x: Math.min(x0, ip.x),
+        y: Math.min(y0, ip.y),
+        w: Math.abs(ip.x - x0),
+        h: Math.abs(ip.y - y0),
+      });
+      enableApplyIfValid();
+      drawCrop();
+    } else if (cropState.mode === 'move') {
+      const dx = ip.x - cropState.dragStart.ix;
+      const dy = ip.y - cropState.dragStart.iy;
+      const s = cropState.dragStart.sel;
+      let nx = s.x + dx, ny = s.y + dy;
+      nx = Math.max(0, Math.min(cropState.imgW - s.w, nx));
+      ny = Math.max(0, Math.min(cropState.imgH - s.h, ny));
+      cropState.sel = { x: nx, y: ny, w: s.w, h: s.h };
+      drawCrop();
+    } else if (cropState.mode === 'resize') {
+      const s = cropState.dragStart.sel;
+      let x1 = s.x, y1 = s.y, x2 = s.x + s.w, y2 = s.y + s.h;
+      const h = cropState.handle;
+      if (h.includes('l')) x1 = ip.x;
+      if (h.includes('r')) x2 = ip.x;
+      if (h.includes('t')) y1 = ip.y;
+      if (h.includes('b')) y2 = ip.y;
+      cropState.sel = clampSelToImage({
+        x: Math.min(x1, x2),
+        y: Math.min(y1, y2),
+        w: Math.abs(x2 - x1),
+        h: Math.abs(y2 - y1),
+      });
+      enableApplyIfValid();
+      drawCrop();
+    }
+  }
+
+  function onPointerUp(e) {
+    const cv = document.getElementById('cropCanvas');
+    try { cv.releasePointerCapture(e.pointerId); } catch (_) {}
+    cropState.pointers.delete(e.pointerId);
+
+    if (cropState.mode === 'pinch') {
+      if (cropState.pointers.size < 2) {
+        cropState.mode = null;
+        cropState.pinchStart = null;
+      }
+      return;
+    }
+
+    cv.classList.remove('panning');
+    cropState.mode = null;
+    cropState.handle = null;
+    enableApplyIfValid();
+  }
+
+  function onPointerHoverLeave() {
+    if (!cropState.mode) {
+      document.getElementById('cropCanvas').style.cursor = cropState.spaceDown ? 'grab' : 'crosshair';
+    }
+  }
+
+  function enableApplyIfValid() {
+    const s = cropState.sel;
+    const valid = s && s.w >= 2 && s.h >= 2;
+    document.getElementById('cropApplyBtn').disabled = !valid;
+  }
+
+  function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+  function midpoint(a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
+
+  // Space-to-pan
+  document.addEventListener('keydown', e => {
+    if (!document.getElementById('cropModal').classList.contains('open')) return;
+    if (e.code === 'Space' && !cropState.spaceDown) {
+      cropState.spaceDown = true;
+      if (!cropState.mode) document.getElementById('cropCanvas').style.cursor = 'grab';
+      e.preventDefault();
+    } else if (e.key === 'Escape') {
+      closeCrop();
+    } else if ((e.key === '+' || e.key === '=')) {
+      zoomBy(1.25); e.preventDefault();
+    } else if (e.key === '-' || e.key === '_') {
+      zoomBy(1 / 1.25); e.preventDefault();
+    } else if (e.key === '0') {
+      zoomFit(); e.preventDefault();
+    } else if (e.key === 'Enter' && !document.getElementById('cropApplyBtn').disabled) {
+      applyCrop();
+    }
+  });
+  document.addEventListener('keyup', e => {
+    if (e.code === 'Space') {
+      cropState.spaceDown = false;
+      if (!cropState.mode) {
+        const cv = document.getElementById('cropCanvas');
+        if (cv) cv.style.cursor = 'crosshair';
+      }
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', initCropEvents);
+  if (document.readyState === 'interactive' || document.readyState === 'complete') initCropEvents();
+
+  function applyCrop() {
+    const sel = cropState.sel;
+    if (!sel || sel.w < 2 || sel.h < 2) return;
+
+    const page = pages[cropState.pageIndex];
+
+    // Selection is already in rotation-applied image space — crop from srcCanvas.
+    const x = Math.round(sel.x);
+    const y = Math.round(sel.y);
+    const w = Math.round(sel.w);
+    const h = Math.round(sel.h);
+
+    const off = document.createElement('canvas');
+    off.width = w;
+    off.height = h;
+    const ctx = off.getContext('2d');
+    ctx.drawImage(cropState.srcCanvas, x, y, w, h, 0, 0, w, h);
+
+    const croppedDataUrl = off.toDataURL('image/jpeg', 0.95);
+
+    // Save original so reset works (only the first time).
+    if (!page.originalDataUrl) {
+      page.originalDataUrl  = page.dataUrl;
+      page.originalNaturalW = page.naturalW;
+      page.originalNaturalH = page.naturalH;
+      page.originalImg      = page.img;
+      page.originalRotation = page.rotation || 0;
+    }
+
+    const newImg = new Image();
+    newImg.onload = () => {
+      page.img      = newImg;
+      page.dataUrl  = croppedDataUrl;
+      page.naturalW = w;
+      page.naturalH = h;
+      // Rotation has been baked into the crop, so reset display rotation.
+      page.rotation = 0;
+      render();
+      closeCrop();
+    };
+    newImg.src = croppedDataUrl;
+  }
+
+  function resetCrop() {
+    const page = pages[cropState.pageIndex];
+    if (!page.originalDataUrl) return;
+
+    page.dataUrl  = page.originalDataUrl;
+    page.naturalW = page.originalNaturalW;
+    page.naturalH = page.originalNaturalH;
+    page.img      = page.originalImg;
+    page.rotation = page.originalRotation || 0;
+    delete page.originalDataUrl;
+    delete page.originalNaturalW;
+    delete page.originalNaturalH;
+    delete page.originalImg;
+    delete page.originalRotation;
+
+    render();
+    closeCrop();
+  }
+
+  // ── PDF generation ──
+  async function generatePDF() {
+    if (pages.length === 0) return;
+
+    document.getElementById('loadingOverlay').classList.add('show');
+    await new Promise(r => setTimeout(r, 80)); // let UI update
+
+    try {
+      await loadJsPDF();
+      const { jsPDF } = window.jspdf;
+      const a4 = orientation === 'portrait' ? A4_P : A4_L;
+      const orient = orientation === 'portrait' ? 'p' : 'l';
+
+      const pdf = new jsPDF({ orientation: orient, unit: 'mm', format: 'a4' });
+
+      for (let i = 0; i < pages.length; i++) {
+        if (i > 0) pdf.addPage('a4', orient);
+
+        const page = pages[i];
+        const rotation = ((page.rotation || 0) % 360 + 360) % 360;
+        const isSwapped = rotation === 90 || rotation === 270;
+
+        // Effective (post-rotation) pixel dimensions
+        const imgW = isSwapped ? page.naturalH : page.naturalW;
+        const imgH = isSwapped ? page.naturalW : page.naturalH;
+
+        // Fit inside A4 with white margins
+        const scale = Math.min(a4.w / imgW, a4.h / imgH);
+        const drawW = imgW * scale;
+        const drawH = imgH * scale;
+        const x = (a4.w - drawW) / 2;
+        const y = (a4.h - drawH) / 2;
+
+        // White background
+        pdf.setFillColor(255, 255, 255);
+        pdf.rect(0, 0, a4.w, a4.h, 'F');
+
+        // Bake rotation into a canvas so the embedded image is upright.
+        let imgData = page.dataUrl;
+        let fmt = 'JPEG';
+        if (page.dataUrl.startsWith('data:image/png')) fmt = 'PNG';
+        else if (page.dataUrl.startsWith('data:image/webp')) fmt = 'WEBP';
+
+        if (rotation !== 0) {
+          const off = document.createElement('canvas');
+          off.width  = imgW;   // already swapped if needed
+          off.height = imgH;
+          const ctx = off.getContext('2d');
+          ctx.translate(off.width / 2, off.height / 2);
+          ctx.rotate(rotation * Math.PI / 180);
+          ctx.drawImage(page.img, -page.naturalW / 2, -page.naturalH / 2, page.naturalW, page.naturalH);
+          imgData = off.toDataURL('image/jpeg', 0.95);
+          fmt = 'JPEG';
+        }
+
+        pdf.addImage(imgData, fmt, x, y, drawW, drawH);
+      }
+
+      pdf.save('combined.pdf');
+    } catch (err) {
+      alert('PDF generation failed: ' + err.message);
+      console.error(err);
+    }
+
+    document.getElementById('loadingOverlay').classList.remove('show');
+  }
+</script>
+</body>
+</html>
